@@ -11,7 +11,7 @@ fastapi = "^0.110.0"
 uvicorn = "^0.28.0"
 sqlalchemy = "^2.0.28"
 asyncpg = "^0.29.0"
-alembic = "^1.13.1"
+alembic = {extras = ["sqlalchemy"], version = "^1.13.1"}
 fastapi-users = {extras = ["sqlalchemy"], version = "^13.0.0"}
 pydantic-settings = "^2.2.1"
 
