@@ -8,6 +8,7 @@ from fastapi_users import BaseUserManager, IntegerIDMixin
 from .config import AuthSettings
 from .db import get_user_db
 from .models import User
+from referral_program.models import ReferralCode
 
 
 @lru_cache
