@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timedelta
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -14,3 +15,6 @@ class ReferralCodeCreate(BaseModel):
             raise ValueError("Expiration date must not be already expired")
         return v
 
+
+class ReferralCodeRead(BaseModel):
+    referral_code: Optional[str] = Field(max_length=16, default=None)

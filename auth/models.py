@@ -9,8 +9,10 @@ from core.models import Base
 
 class User(SQLAlchemyBaseUserTable[int], Base):
     id: Mapped[int] = mapped_column(primary_key=True)
-    referrer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("referral_code.id"), default=None)
+    referrer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("referral_code.id", ondelete="SET NULL"), nullable=True, default=None
+    )
 
-    referral_codes = relationship("ReferralCode", back_populates="referrer",
-                                  primaryjoin="User.id == ReferralCode.referrer_id")
-
+    referral_codes = relationship(
+        "ReferralCode", back_populates="referrer", primaryjoin="User.id == ReferralCode.referrer_id"
+    )
