@@ -16,4 +16,5 @@ class ReferralCode(Base):
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow)
     expired_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP)
 
-    referrer = relationship("User", back_populates="referral_codes")
+    referrer = relationship("User", back_populates="referral_codes",
+                            primaryjoin="ReferralCode.referrer_id == User.id")

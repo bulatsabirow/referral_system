@@ -9,7 +9,7 @@ from starlette import status
 
 from .config import AuthSettings
 from .db import get_user_db
-from .models import User, ReferralUser
+from .models import User
 from referral_program.models import ReferralCode
 
 
@@ -49,14 +49,16 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             else user_create.create_update_dict_superuser()
         )
 
+        referral_code = user_dict.pop("referral_code", None)
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
 
-        created_user = await self.user_db.create(user_dict)
-        referral_code = user_dict.pop("referral_code", None)
         if referral_code:
             await self.validate_referral_code(referral_code)
-            await self.user_db.insert_referrer_and_referral(referral_code, created_user)
+            referral_code_model = await self.user_db.get_referral_code(referral_code)
+            user_dict["referrer_id"] = referral_code_model.referrer_id
+
+        created_user = await self.user_db.create(user_dict)
 
         await self.on_after_register(created_user, request)
 

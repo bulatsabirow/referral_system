@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
 from sqlalchemy import ForeignKey, CheckConstraint
 from sqlalchemy.orm import mapped_column, Mapped, relationship
@@ -7,14 +9,8 @@ from core.models import Base
 
 class User(SQLAlchemyBaseUserTable[int], Base):
     id: Mapped[int] = mapped_column(primary_key=True)
+    referrer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("referral_code.id"), default=None)
 
-    referral_codes = relationship("ReferralCode", back_populates="referrer")
+    referral_codes = relationship("ReferralCode", back_populates="referrer",
+                                  primaryjoin="User.id == ReferralCode.referrer_id")
 
-
-class ReferralUser(Base):
-    __tablename__ = "referral_user"
-    __table_args__ = (
-        CheckConstraint("referral_code_id != referral_id", name="check_referral_and_referrer_and_not_the_same_person"),)
-    id: Mapped[int] = mapped_column(primary_key=True)
-    referral_code_id: Mapped[int] = mapped_column(ForeignKey("referral_code.id"), unique=True)
-    referral_id: Mapped[int] = mapped_column(ForeignKey("user.id"), unique=True)
