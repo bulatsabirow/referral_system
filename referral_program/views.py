@@ -1,11 +1,13 @@
+import base64
 import secrets
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, and_, exists, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, contains_eager
 
-from auth import fastapi_users
+from auth import fastapi_users, User
 from core.db import get_async_session
 from referral_program.models import ReferralCode
 from referral_program.schema import ReferralCodeCreate
@@ -35,3 +37,16 @@ async def create_referral_code(referral_code_create: ReferralCodeCreate,
     await session.commit()
 
     return referral_code
+
+
+@router.get("/")
+async def get_referral_code_by_email(email: str,
+                                     session: AsyncSession = Depends(get_async_session)):
+    encoded_email = email
+    email: str = base64.urlsafe_b64decode(encoded_email).decode('utf-8')
+    query = (select(ReferralCode).join(ReferralCode.referrer).options(contains_eager(ReferralCode.referrer)).
+             where(User.email == email, ReferralCode.expired_at >= datetime.utcnow()))
+
+    referral_code = await session.scalar(query)
+
+    return {"referral_code": getattr(referral_code, "code", None)}
