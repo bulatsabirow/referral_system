@@ -16,5 +16,5 @@ class ReferralUser(Base):
     __table_args__ = (
         CheckConstraint("referral_code_id != referral_id", name="check_referral_and_referrer_and_not_the_same_person"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    referral_code_id: Mapped[int] = mapped_column(ForeignKey("referral_code.id"))
-    referral_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    referral_code_id: Mapped[int] = mapped_column(ForeignKey("referral_code.id"), unique=True)
+    referral_id: Mapped[int] = mapped_column(ForeignKey("user.id"), unique=True)

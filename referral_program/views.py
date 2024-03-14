@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, and_, exists
+from sqlalchemy import select, and_, exists, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import fastapi_users
@@ -19,6 +19,7 @@ async def create_referral_code(referral_code_create: ReferralCodeCreate,
                                session: AsyncSession = Depends(get_async_session),
                                current_user=Depends(get_current_user)):
     print(type(current_user))
+    # TODO consider another one condition
     query = select(ReferralCode).where(ReferralCode.referrer_id == current_user.id,
                                        ReferralCode.expired_at >= datetime.utcnow())
     result = await session.execute(exists(query).select())
@@ -34,10 +35,3 @@ async def create_referral_code(referral_code_create: ReferralCodeCreate,
     await session.commit()
 
     return referral_code
-
-
-
-
-
-
-
