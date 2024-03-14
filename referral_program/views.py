@@ -12,22 +12,24 @@ from auth import fastapi_users, User
 from auth.schema import UserRead
 from core.db import get_async_session
 from referral_program.models import ReferralCode
-from referral_program.schema import ReferralCodeCreate, ReferralCodeRead
+from referral_program.schema import ReferralCodeCreate, ReferralCodeRead, GetReferralCodeQueryParams
 
 router = APIRouter(prefix="/referral_code", tags=["referral_code"])
 get_current_user = fastapi_users.current_user()
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_referral_code(
     referral_code_create: ReferralCodeCreate,
     session: AsyncSession = Depends(get_async_session),
     current_user=Depends(get_current_user),
 ):
-    print(type(current_user))
-    # TODO consider another one condition
-    query = select(ReferralCode).where(
-        ReferralCode.referrer_id == current_user.id, ReferralCode.expired_at >= datetime.utcnow()
+    query = (
+        select(ReferralCode)
+        .join(User, ReferralCode.id == User.referrer_id, isouter=True)
+        .where(
+            ReferralCode.referrer_id == current_user.id, ReferralCode.expired_at >= datetime.utcnow(), User.id == None
+        )
     )
     result = await session.execute(exists(query).select())
     if result.scalar():
@@ -59,13 +61,10 @@ async def delete_referral_code(
 
 @router.get("/", response_model=ReferralCodeRead)
 async def get_referral_code_by_email(
-    email: Annotated[str, Query()], session: AsyncSession = Depends(get_async_session)
+    query_params: GetReferralCodeQueryParams = Depends(GetReferralCodeQueryParams),
+    session: AsyncSession = Depends(get_async_session),
 ):
-    # TODO validate email address (UnicodeDecodeError)
-
-    encoded_email = email
-    email: str = base64.urlsafe_b64decode(encoded_email).decode("utf-8")
-
+    email = query_params.email
     query = (
         select(ReferralCode)
         .join(ReferralCode.referrer)
@@ -86,7 +85,7 @@ async def get_referral_code_by_email(
 
 @router.get("/referrals/{id}", dependencies=[Depends(get_current_user)], response_model=list[UserRead])
 async def get_referrals_by_referrer_id(id: int, session: AsyncSession = Depends(get_async_session)):
-    query = select(User).where(User.referrer_id == id)
+    query = select(User).where(User.referrer_id.in_(select(ReferralCode.id).where(ReferralCode.referrer_id == id)))
     referrals = await session.scalars(query)
 
     return referrals.all()

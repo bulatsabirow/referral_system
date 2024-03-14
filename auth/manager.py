@@ -25,12 +25,12 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def validate_referral_code(self, referral_code: str) -> None:
         check_referral_code_existence = await self.user_db.check_referral_code_existence(referral_code)
         if not check_referral_code_existence.scalar():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Referral code does not exist")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Referral code does not exist")
 
         check_referral_code_was_used = await self.user_db.check_referral_code_was_used(referral_code)
         if check_referral_code_was_used.scalar():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Referral code was already used")
-        
+
     async def create(
         self,
         user_create: schemas.UC,
@@ -43,11 +43,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         if existing_user is not None:
             raise exceptions.UserAlreadyExists()
 
-        user_dict = (
-            user_create.create_update_dict()
-            if safe
-            else user_create.create_update_dict_superuser()
-        )
+        user_dict = user_create.create_update_dict() if safe else user_create.create_update_dict_superuser()
 
         referral_code = user_dict.pop("referral_code", None)
         password = user_dict.pop("password")
@@ -56,7 +52,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         if referral_code:
             await self.validate_referral_code(referral_code)
             referral_code_model = await self.user_db.get_referral_code(referral_code)
-            user_dict["referrer_id"] = referral_code_model.referrer_id
+            user_dict["referrer_id"] = referral_code_model.id
 
         created_user = await self.user_db.create(user_dict)
 
@@ -67,14 +63,10 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
 
-    async def on_after_forgot_password(
-        self, user: User, token: str, request: Optional[Request] = None
-    ):
+    async def on_after_forgot_password(self, user: User, token: str, request: Optional[Request] = None):
         print(f"User {user.id} has forgot their password. Reset token: {token}")
 
-    async def on_after_request_verify(
-        self, user: User, token: str, request: Optional[Request] = None
-    ):
+    async def on_after_request_verify(self, user: User, token: str, request: Optional[Request] = None):
         print(f"Verification requested for user {user.id}. Verification token: {token}")
 
 

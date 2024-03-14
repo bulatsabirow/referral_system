@@ -2,7 +2,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from fastapi import Query
+from pydantic import BaseModel, Field, field_validator, EmailStr
 
 
 class ReferralCodeCreate(BaseModel):
@@ -18,3 +19,7 @@ class ReferralCodeCreate(BaseModel):
 
 class ReferralCodeRead(BaseModel):
     referral_code: Optional[str] = Field(max_length=16, default=None)
+
+
+class GetReferralCodeQueryParams(BaseModel):
+    email: EmailStr = Field(Query(description="email address", example="user@example.com"))
