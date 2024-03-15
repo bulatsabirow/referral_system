@@ -12,8 +12,4 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
-app.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/jwt/login",
-    tags=["auth"]
-)
+app.include_router(fastapi_users.get_auth_router(auth_backend), prefix="/auth", tags=["auth"])

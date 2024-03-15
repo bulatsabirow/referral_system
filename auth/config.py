@@ -1,17 +1,17 @@
 import os.path
 from functools import lru_cache
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AuthSettings(BaseSettings):
     JWT_SECRET: str = "SECRET"
     RESET_PASSWORD_TOKEN_SECRET: str = "SECRET"
     VERIFICATION_TOKEN_SECRET: str = "SECRET"
+    JWT_ACCESS_TOKEN_MAX_AGE: int = 300
+    JWT_REFRESH_TOKEN_MAX_AGE: int = 2629746
 
-    class Config:
-        env_file = os.path.join("..", ".env")
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(env_file=os.path.join(".env"), env_file_encoding="utf-8", extra="ignore")
 
 
 auth_settings = AuthSettings()
