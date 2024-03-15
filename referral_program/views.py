@@ -1,16 +1,16 @@
-import base64
-import secrets
 from datetime import datetime
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, and_, exists, delete
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi_users.router.common import ErrorModel
+from sqlalchemy import select, exists, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, contains_eager
+from sqlalchemy.orm import contains_eager
 
-from auth import fastapi_users, User
+from auth.models import User
+from auth.fastapi_users import fastapi_users
 from auth.schema import UserRead
 from core.db import get_async_session
+from core.enums import ErrorDetails
 from referral_program.models import ReferralCode
 from referral_program.schema import ReferralCodeCreate, ReferralCodeRead, GetReferralCodeQueryParams
 
@@ -18,7 +18,25 @@ router = APIRouter(prefix="/referral_code", tags=["referral_code"])
 get_current_user = fastapi_users.current_user()
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorModel,
+            "content": {
+                "application/json": {
+                    "examples": {
+                        ErrorDetails.ACTIVE_REFERRAL_CODE_ALREADY_EXISTS: {
+                            "summary": ErrorDetails.ACTIVE_REFERRAL_CODE_ALREADY_EXISTS,
+                            "value": {"detail": ErrorDetails.ACTIVE_REFERRAL_CODE_ALREADY_EXISTS},
+                        },
+                    }
+                }
+            },
+        }
+    },
+)
 async def create_referral_code(
     referral_code_create: ReferralCodeCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -33,7 +51,9 @@ async def create_referral_code(
     )
     result = await session.execute(exists(query).select())
     if result.scalar():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Active referral code already exists")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.ACTIVE_REFERRAL_CODE_ALREADY_EXISTS
+        )
 
     referral_code = ReferralCode(
         referrer_id=current_user.id,
@@ -47,14 +67,32 @@ async def create_referral_code(
     return referral_code
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorModel,
+            "content": {
+                "application/json": {
+                    "examples": {
+                        ErrorDetails.REFERRAL_CODE_NOT_FOUND: {
+                            "summary": ErrorDetails.REFERRAL_CODE_NOT_FOUND,
+                            "value": {"detail": ErrorDetails.REFERRAL_CODE_NOT_FOUND},
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
 async def delete_referral_code(
     id: int, session: AsyncSession = Depends(get_async_session), current_user=Depends(get_current_user)
 ):
     if not await session.scalar(
         exists(ReferralCode).where(ReferralCode.referrer_id == current_user.id, ReferralCode.id == id).select()
     ):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Referral code with entered id doesn't exist")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=ErrorDetails.REFERRAL_CODE_NOT_FOUND)
 
     query = delete(ReferralCode).where(ReferralCode.referrer_id == current_user.id, ReferralCode.id == id)
 
@@ -82,14 +120,42 @@ async def get_referral_code_by_email(
     if not referral_code or await session.scalar(
         select(User).where(User.referrer_id == referral_code.id).exists().select()
     ):
-        return ReferralCodeRead(referral_code=None)
+        return ReferralCodeRead()
 
-    return ReferralCodeRead(referral_code=referral_code.code)
+    return ReferralCodeRead(referral_code=referral_code.code, id=referral_code.id)
 
 
-@router.get("/referrals/{id}", dependencies=[Depends(get_current_user)], response_model=list[UserRead])
+@router.get(
+    "/referrals/{id}",
+    dependencies=[Depends(get_current_user)],
+    response_model=list[UserRead],
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorModel,
+            "content": {
+                "application/json": {
+                    "examples": {
+                        ErrorDetails.USER_NOT_FOUND: {
+                            "summary": ErrorDetails.USER_NOT_FOUND,
+                            "value": {"detail": ErrorDetails.USER_NOT_FOUND},
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
 async def get_referrals_by_referrer_id(id: int, session: AsyncSession = Depends(get_async_session)):
-    query = select(User).where(User.referrer_id.in_(select(ReferralCode.id).where(ReferralCode.referrer_id == id)))
+    is_user_existing = await session.scalar(exists(select(User).where(User.id == id)).select())
+
+    if not is_user_existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=ErrorDetails.USER_NOT_FOUND)
+
+    query = (
+        select(User)
+        .where(User.referrer_id.in_(select(ReferralCode.id).where(ReferralCode.referrer_id == id)))
+        .order_by(User.id)
+    )
     referrals = await session.scalars(query)
 
     return referrals.all()

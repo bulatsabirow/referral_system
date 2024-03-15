@@ -1,4 +1,3 @@
-import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -18,7 +17,7 @@ class ReferralCodeCreate(BaseModel):
 
 
 class ReferralCodeRead(BaseModel):
-    # TODO add id field
+    id: Optional[int] = None
     referral_code: Optional[str] = Field(max_length=16, default=None)
 
 
