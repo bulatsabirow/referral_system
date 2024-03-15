@@ -12,6 +12,13 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_NAME: postgres
+  redis:
+    image: redis:6-alpine
+    ports:
+    - 6379:6379
+    volumes:
+      - redis:/data
 
 volumes:
   stakewolle_testing_task:
+  redis:

@@ -19,7 +19,9 @@ class UserRead(CreateUpdateDictModel):
             orm_mode = True
 
 
-class UserCreate(schemas.BaseUserCreate):
+class UserCreate(CreateUpdateDictModel):
+    email: EmailStr
+    password: str
     referral_code: Optional[str] = Field(max_length=16, default=None)
 
 

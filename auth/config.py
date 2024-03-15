@@ -8,8 +8,8 @@ class AuthSettings(BaseSettings):
     JWT_SECRET: str = "SECRET"
     RESET_PASSWORD_TOKEN_SECRET: str = "SECRET"
     VERIFICATION_TOKEN_SECRET: str = "SECRET"
-    JWT_ACCESS_TOKEN_MAX_AGE: int = 300
-    JWT_REFRESH_TOKEN_MAX_AGE: int = 2629746
+    JWT_ACCESS_TOKEN_LIFETIME_SECONDS: int = 300
+    JWT_REFRESH_TOKEN_LIFETIME_SECONDS: int = 2629746
 
     model_config = SettingsConfigDict(env_file=os.path.join(".env"), env_file_encoding="utf-8", extra="ignore")
 

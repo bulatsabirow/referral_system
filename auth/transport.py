@@ -50,3 +50,26 @@ class RefreshCookieTransport(CookieTransport):
             samesite=self.cookie_samesite,
         )
         return response
+
+    def _set_logout_cookie(self, response: Response) -> Response:
+        response.set_cookie(
+            self.cookie_name,
+            "",
+            max_age=0,
+            path=self.cookie_path,
+            domain=self.cookie_domain,
+            secure=self.cookie_secure,
+            httponly=self.cookie_httponly,
+            samesite=self.cookie_samesite,
+        )
+        response.set_cookie(
+            self.refresh_token_cookie_name,
+            "",
+            max_age=0,
+            path=self.cookie_path,
+            domain=self.cookie_domain,
+            secure=self.cookie_secure,
+            httponly=self.cookie_httponly,
+            samesite=self.cookie_samesite,
+        )
+        return response
