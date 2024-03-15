@@ -1,12 +1,9 @@
-from aioredis import Redis
-from fastapi import Depends, status
+from fastapi import status
 from fastapi_users import models
 from fastapi_users.authentication import (
     AuthenticationBackend,
     JWTStrategy,
-    CookieTransport,
     Strategy,
-    BearerTransport,
     RedisStrategy,
 )
 from fastapi_users.authentication.strategy import StrategyDestroyNotSupportedError
@@ -33,7 +30,8 @@ def get_refresh_cookie_transport() -> RefreshCookieTransport:
 
 def get_jwt_strategy() -> JWTStrategy:
     return JWTStrategy(
-        secret=auth_settings.JWT_SECRET, lifetime_seconds=auth_settings.JWT_ACCESS_TOKEN_LIFETIME_SECONDS
+        secret=auth_settings.JWT_SECRET,
+        lifetime_seconds=auth_settings.JWT_ACCESS_TOKEN_LIFETIME_SECONDS,
     )
 
 
@@ -54,6 +52,23 @@ class AuthenticationRefreshJWTBackend(AuthenticationBackend):
         refresh_token = await refresh_strategy.write_token(user)
         return await self.transport.get_login_response(token=token, refresh_token=refresh_token)
 
+    async def logout(
+        self, strategy: Strategy[models.UP, models.ID], user: models.UP, token: str, refresh_token: str
+    ) -> Response:
+        refresh_strategy = self.get_refresh_strategy()
+        await refresh_strategy.destroy_token(refresh_token, user)
+        try:
+            await strategy.destroy_token(token, user)
+        except StrategyDestroyNotSupportedError:
+            pass
+
+        try:
+            response = await self.transport.get_logout_response()
+        except TransportLogoutNotSupportedError:
+            response = Response(status_code=status.HTTP_204_NO_CONTENT)
+
+        return response
+
 
 auth_backend = AuthenticationRefreshJWTBackend(
     name="jwt",
@@ -61,3 +76,7 @@ auth_backend = AuthenticationRefreshJWTBackend(
     get_strategy=get_jwt_strategy,
     get_refresh_strategy=get_refresh_redis_strategy,
 )
+
+
+def get_auth_backend() -> AuthenticationRefreshJWTBackend:
+    return auth_backend

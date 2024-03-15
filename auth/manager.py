@@ -1,16 +1,13 @@
-import uuid
-from functools import lru_cache
-from typing import Optional, Any
+from typing import Optional
 
 from fastapi import Depends, Request, HTTPException
 from fastapi_users import BaseUserManager, IntegerIDMixin, schemas, models, exceptions
-from sqlalchemy import exists, select
 from starlette import status
 
+from core.enums import ErrorDetails
 from .config import auth_settings
 from .db import get_user_db
 from .models import User
-from referral_program.models import ReferralCode
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
@@ -20,11 +17,13 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     async def validate_referral_code(self, referral_code: str) -> None:
         check_referral_code_existence = await self.user_db.check_referral_code_existence(referral_code)
         if not check_referral_code_existence.scalar():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Referral code does not exist")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.REFERRAL_CODE_DOESNT_EXISTS
+            )
 
         check_referral_code_was_used = await self.user_db.check_referral_code_was_used(referral_code)
         if check_referral_code_was_used.scalar():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Referral code was already used")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.REFERRAL_CODE_ALREADY_USED)
 
     async def create(
         self,

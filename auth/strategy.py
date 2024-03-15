@@ -1,13 +1,14 @@
 import secrets
 from typing import Optional
-import redis.asyncio
 
 from fastapi_users import BaseUserManager, models, exceptions
 from fastapi_users.authentication import RedisStrategy
 
 
 class RefreshRedisStrategy(RedisStrategy):
-    # TODO write f"{self.key_prefix}{token}" as function
+    def get_hset_name(self, token) -> str:
+        return f"{self.key_prefix}{token}"
+
     async def read_token(
         self, token: Optional[str], user_manager: BaseUserManager[models.UP, models.ID]
     ) -> Optional[models.UP]:
@@ -15,7 +16,7 @@ class RefreshRedisStrategy(RedisStrategy):
         if token is None:
             return None
         print("token=", f"{self.key_prefix}{token}")
-        user_id = await self.redis.hget(f"{self.key_prefix}{token}", "user_id")
+        user_id = await self.redis.hget(self.get_hset_name(token), "user_id")
         if user_id is None:
             return None
 
@@ -28,9 +29,10 @@ class RefreshRedisStrategy(RedisStrategy):
 
     async def write_token(self, user: models.UP) -> str:
         token = secrets.token_urlsafe(48)
-        await self.redis.hset(f"{self.key_prefix}{token}", mapping={"user_id": str(user.id)})
-        await self.redis.expire(f"{self.key_prefix}{token}", self.lifetime_seconds)
+        await self.redis.hset(self.get_hset_name(token), mapping={"user_id": str(user.id)})
+        await self.redis.expire(self.get_hset_name(token), self.lifetime_seconds)
         return token
 
     async def destroy_token(self, token: str, user: models.UP) -> None:
-        await self.redis.expire(f"{self.key_prefix}{token}", 0)
+        print("destroyed token =", token)
+        await self.redis.expire(self.get_hset_name(token), 0)

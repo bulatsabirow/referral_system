@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import Depends
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase as SQLAlchemyBaseUserDatabase
 from sqlalchemy import select, exists, and_
@@ -16,9 +14,9 @@ class ReferralCodeMixin:
         return await self.session.execute(select(exists_query))
 
     async def check_referral_code_was_used(self, code):
-        check_used_query = exists(select(ReferralCode).join(User,
-                                                            and_(ReferralCode.referrer_id == User.referrer_id,
-                                                                 ReferralCode.code == code)))
+        check_used_query = exists(
+            select(ReferralCode).join(User, and_(ReferralCode.id == User.referrer_id, ReferralCode.code == code))
+        )
         return await self.session.execute(select(check_used_query))
 
     async def get_referral_code(self, code: str):
