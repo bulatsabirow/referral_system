@@ -18,6 +18,7 @@ class ReferralCodeCreate(BaseModel):
 
 
 class ReferralCodeRead(BaseModel):
+    # TODO add id field
     referral_code: Optional[str] = Field(max_length=16, default=None)
 
 

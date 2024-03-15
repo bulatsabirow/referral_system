@@ -47,13 +47,16 @@ async def create_referral_code(
     return referral_code
 
 
-@router.delete("/", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_referral_code(
-    session: AsyncSession = Depends(get_async_session), current_user=Depends(get_current_user)
+    id: int, session: AsyncSession = Depends(get_async_session), current_user=Depends(get_current_user)
 ):
-    query = delete(ReferralCode).where(
-        ReferralCode.referrer_id == current_user.id, ReferralCode.expired_at >= datetime.utcnow()
-    )
+    if not await session.scalar(
+        exists(ReferralCode).where(ReferralCode.referrer_id == current_user.id, ReferralCode.id == id).select()
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Referral code with entered id doesn't exist")
+
+    query = delete(ReferralCode).where(ReferralCode.referrer_id == current_user.id, ReferralCode.id == id)
 
     await session.execute(query)
     await session.commit()
@@ -70,6 +73,8 @@ async def get_referral_code_by_email(
         .join(ReferralCode.referrer)
         .options(contains_eager(ReferralCode.referrer))
         .where(User.email == email, ReferralCode.expired_at >= datetime.utcnow())
+        .order_by(ReferralCode.created_at.desc())
+        .limit(1)
     )
 
     referral_code = await session.scalar(query)
@@ -79,7 +84,6 @@ async def get_referral_code_by_email(
     ):
         return ReferralCodeRead(referral_code=None)
 
-    print("referral_code", referral_code, referral_code.code)
     return ReferralCodeRead(referral_code=referral_code.code)
 
 
