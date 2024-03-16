@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "stakewolle-testing-task"
+name = "referral_system"
 version = "0.1.0"
 description = ""
 authors = ["bulatsabirow <bulatsabirow@gmail.com>"]
