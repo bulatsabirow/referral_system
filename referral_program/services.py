@@ -1,5 +1,5 @@
-import secrets
+from core.utils import generate_random_string
 
 
 def generate_referral_code() -> str:
-    return secrets.token_urlsafe(12)
+    return generate_random_string(16)

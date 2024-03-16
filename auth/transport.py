@@ -22,7 +22,6 @@ class RefreshCookieTransport(CookieTransport):
 
         self.refresh_token_cookie_name = refresh_token_cookie_name
         self.refresh_cookie_max_age = refresh_token_cookie_max_age
-        print(f"{self.cookie_name=}")
 
     async def get_login_response(self, token: str, refresh_token: str) -> Response:
         response = Response(status_code=status.HTTP_204_NO_CONTENT)

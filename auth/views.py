@@ -22,20 +22,6 @@ from auth.transport import RefreshCookieTransport
 from core.enums import ErrorDetails
 
 
-# router = APIRouter(prefix="/auth", tags=["auth"])
-# get_current_user = fastapi_users.current_user()
-# get_current_user_token = Authenticator([auth_backend], get_user_manager).current_user_token(active=True)
-# backend = get_auth_backend()
-# logout_responses: OpenAPIResponseType = {
-#     **{
-#         status.HTTP_401_UNAUTHORIZED: {
-#             "description": "Missing token or inactive user."
-#         }
-#     },
-#     **backend.transport.get_openapi_logout_responses_success(),
-# }
-
-
 def get_auth_router(
     backend: AuthenticationRefreshJWTBackend,
     get_user_manager: UserManagerDependency[models.UP, models.ID],
@@ -140,6 +126,7 @@ def get_auth_router(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=ErrorDetails.INVALID_REFRESH_TOKEN)
 
         token = await strategy.write_token(user)
+        await refresh_strategy.destroy_token(refresh_token, user)
         new_refresh_token = await refresh_strategy.write_token(user)
         return await transport.get_login_response(token, new_refresh_token)
 

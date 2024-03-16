@@ -14,7 +14,7 @@ from starlette.responses import Response
 from auth.config import auth_settings
 from auth.strategy import RefreshRedisStrategy
 from auth.transport import RefreshCookieTransport
-from core.redis import get_redis
+from core.redis import redis
 
 refresh_cookie_transport = RefreshCookieTransport(
     access_token_cookie_name="access_token",
@@ -37,7 +37,7 @@ def get_jwt_strategy() -> JWTStrategy:
 
 def get_refresh_redis_strategy() -> RedisStrategy:
     return RefreshRedisStrategy(
-        key_prefix="", redis=get_redis(), lifetime_seconds=auth_settings.JWT_REFRESH_TOKEN_LIFETIME_SECONDS
+        key_prefix="", redis=redis, lifetime_seconds=auth_settings.JWT_REFRESH_TOKEN_LIFETIME_SECONDS
     )
 
 
@@ -76,7 +76,3 @@ auth_backend = AuthenticationRefreshJWTBackend(
     get_strategy=get_jwt_strategy,
     get_refresh_strategy=get_refresh_redis_strategy,
 )
-
-
-def get_auth_backend() -> AuthenticationRefreshJWTBackend:
-    return auth_backend
