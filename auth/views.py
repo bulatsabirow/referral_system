@@ -13,12 +13,11 @@ from fastapi_users.router.common import ErrorCode, ErrorModel
 
 from auth.backend import (
     get_refresh_redis_strategy,
-    get_refresh_cookie_transport,
     get_jwt_strategy,
     AuthenticationRefreshJWTBackend,
 )
 from auth.manager import get_user_manager
-from auth.transport import RefreshCookieTransport
+from auth.transport import RefreshCookieTransport, get_refresh_cookie_transport
 from core.enums import ErrorDetails
 
 

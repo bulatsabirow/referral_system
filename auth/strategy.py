@@ -1,9 +1,10 @@
 from typing import Optional
 
 from fastapi_users import BaseUserManager, models, exceptions
-from fastapi_users.authentication import RedisStrategy
+from fastapi_users.authentication import RedisStrategy, JWTStrategy
 
 from auth.config import auth_settings
+from core.redis import redis
 from core.utils import generate_random_string
 
 
@@ -36,3 +37,16 @@ class RefreshRedisStrategy(RedisStrategy):
 
     async def destroy_token(self, token: str, user: models.UP) -> None:
         await self.redis.expire(self.get_hset_name(token), 0)
+
+
+def get_jwt_strategy() -> JWTStrategy:
+    return JWTStrategy(
+        secret=auth_settings.JWT_SECRET,
+        lifetime_seconds=auth_settings.JWT_ACCESS_TOKEN_LIFETIME_SECONDS,
+    )
+
+
+def get_refresh_redis_strategy() -> RedisStrategy:
+    return RefreshRedisStrategy(
+        key_prefix="", redis=redis, lifetime_seconds=auth_settings.JWT_REFRESH_TOKEN_LIFETIME_SECONDS
+    )

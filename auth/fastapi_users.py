@@ -41,3 +41,5 @@ fastapi_users = RefreshTokenFastAPIUsers(
     get_user_manager,
     [auth_backend],
 )
+
+get_current_user = fastapi_users.current_user()

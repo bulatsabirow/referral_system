@@ -1,21 +1,17 @@
-from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_users.router.common import ErrorModel
-from sqlalchemy import select, exists, delete
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager
 
-from auth.models import User
-from auth.fastapi_users import fastapi_users
+from auth.db import get_user_db, SQLAlchemyUserDatabase
+from auth.fastapi_users import get_current_user
 from auth.schema import UserRead
-from core.db import get_async_session
 from core.enums import ErrorDetails
+from referral_program.db import get_referral_program_repository, ReferralProgramRepository
 from referral_program.models import ReferralCode
 from referral_program.schema import ReferralCodeCreate, ReferralCodeRead, GetReferralCodeQueryParams
 
 router = APIRouter(prefix="/referral_code", tags=["referral_code"])
-get_current_user = fastapi_users.current_user()
 
 
 @router.post(
@@ -39,18 +35,10 @@ get_current_user = fastapi_users.current_user()
 )
 async def create_referral_code(
     referral_code_create: ReferralCodeCreate,
-    session: AsyncSession = Depends(get_async_session),
+    repository: Annotated[ReferralProgramRepository, Depends(get_referral_program_repository)],
     current_user=Depends(get_current_user),
 ):
-    query = (
-        select(ReferralCode)
-        .join(User, ReferralCode.id == User.referrer_id, isouter=True)
-        .where(
-            ReferralCode.referrer_id == current_user.id, ReferralCode.expired_at >= datetime.utcnow(), User.id == None
-        )
-    )
-    result = await session.execute(exists(query).select())
-    if result.scalar():
+    if await repository.check_whether_active_referral_code_exists(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.ACTIVE_REFERRAL_CODE_ALREADY_EXISTS
         )
@@ -60,9 +48,7 @@ async def create_referral_code(
         expired_at=referral_code_create.expired_at.replace(tzinfo=None),
     )
 
-    session.add(referral_code)
-
-    await session.commit()
+    await repository.create_referral_code(referral_code)
 
     return referral_code
 
@@ -87,39 +73,24 @@ async def create_referral_code(
     },
 )
 async def delete_referral_code(
-    id: int, session: AsyncSession = Depends(get_async_session), current_user=Depends(get_current_user)
+    id: int,
+    repository: Annotated[ReferralProgramRepository, Depends(get_referral_program_repository)],
+    current_user=Depends(get_current_user),
 ):
-    if not await session.scalar(
-        exists(ReferralCode).where(ReferralCode.referrer_id == current_user.id, ReferralCode.id == id).select()
-    ):
+    if not await repository.check_whether_referral_code_exists_by_id(user_id=current_user.id, id=id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=ErrorDetails.REFERRAL_CODE_NOT_FOUND)
 
-    query = delete(ReferralCode).where(ReferralCode.referrer_id == current_user.id, ReferralCode.id == id)
-
-    await session.execute(query)
-    await session.commit()
+    await repository.delete_referral_code_by_id(user_id=current_user.id, id=id)
 
 
 @router.get("/", response_model=ReferralCodeRead)
 async def get_referral_code_by_email(
-    query_params: GetReferralCodeQueryParams = Depends(GetReferralCodeQueryParams),
-    session: AsyncSession = Depends(get_async_session),
+    repository: Annotated[ReferralProgramRepository, Depends(get_referral_program_repository)],
+    query_params: Annotated[GetReferralCodeQueryParams, Depends(GetReferralCodeQueryParams)],
 ):
-    email = query_params.email
-    query = (
-        select(ReferralCode)
-        .join(ReferralCode.referrer)
-        .options(contains_eager(ReferralCode.referrer))
-        .where(User.email == email, ReferralCode.expired_at >= datetime.utcnow())
-        .order_by(ReferralCode.created_at.desc())
-        .limit(1)
-    )
+    referral_code = await repository.fetch_referral_code_by_email(query_params.email)
 
-    referral_code = await session.scalar(query)
-
-    if not referral_code or await session.scalar(
-        select(User).where(User.referrer_id == referral_code.id).exists().select()
-    ):
+    if not referral_code or await repository.check_whether_referral_code_was_used(referral_code):
         return ReferralCodeRead()
 
     return ReferralCodeRead(referral_code=referral_code.code, id=referral_code.id)
@@ -145,17 +116,12 @@ async def get_referral_code_by_email(
         },
     },
 )
-async def get_referrals_by_referrer_id(id: int, session: AsyncSession = Depends(get_async_session)):
-    is_user_existing = await session.scalar(exists(select(User).where(User.id == id)).select())
+async def get_referrals_by_referrer_id(id: int, user_db: Annotated[SQLAlchemyUserDatabase, Depends(get_user_db)]):
+    is_user_existing = await user_db.check_whether_user_exists(id)
 
     if not is_user_existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=ErrorDetails.USER_NOT_FOUND)
 
-    query = (
-        select(User)
-        .where(User.referrer_id.in_(select(ReferralCode.id).where(ReferralCode.referrer_id == id)))
-        .order_by(User.id)
-    )
-    referrals = await session.scalars(query)
+    referrals = await user_db.fetch_referrals(id)
 
     return referrals.all()

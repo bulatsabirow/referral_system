@@ -25,9 +25,18 @@ class ReferralCodeMixin:
 
         return referral_code
 
+    async def fetch_referrals(self, id: int):
+        query = (
+            select(User)
+            .where(User.referrer_id.in_(select(ReferralCode.id).where(ReferralCode.referrer_id == id)))
+            .order_by(User.id)
+        )
+        return await self.session.scalars(query)
+
 
 class SQLAlchemyUserDatabase(ReferralCodeMixin, SQLAlchemyBaseUserDatabase):
-    pass
+    async def check_whether_user_exists(self, id: int) -> bool:
+        return await self.session.scalar(exists(select(User).where(User.id == id)).select())
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
