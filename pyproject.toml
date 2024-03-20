@@ -16,6 +16,7 @@ fastapi-users = {extras = ["sqlalchemy"], version = "^13.0.0"}
 pydantic-settings = "^2.2.1"
 aioredis = "^2.0.1"
 redis = "^5.0.3"
+faker = "^24.3.0"
 
 
 [tool.poetry.group.dev.dependencies]
