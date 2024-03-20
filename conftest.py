@@ -2,6 +2,7 @@ import asyncio
 from typing import AsyncGenerator, Annotated
 
 import pytest
+from faker import Faker
 from fastapi_users.schemas import BaseUser
 from httpx import AsyncClient
 from pytest_asyncio import is_async_test
@@ -21,7 +22,9 @@ strategy = get_jwt_strategy()
 refresh_strategy = get_refresh_redis_strategy()
 
 test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-test_session = async_sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+test_session = async_sessionmaker(expire_on_commit=False, autocommit=False, autoflush=False, bind=test_engine)
+# TODO use testing Redis connection
+fake = Faker()
 
 
 @pytest.fixture(scope="session")
@@ -56,11 +59,13 @@ async def get_test_user_db(get_test_async_session):
 
 @pytest.fixture
 async def auth_client(user, get_test_async_session) -> AsyncGenerator[AsyncClient, None]:
+    # TODO use context manager for dependency overriding
     app.dependency_overrides[get_async_session] = lambda: get_test_async_session
 
     async with AsyncClient(
         app=app,
         base_url="http://test",
+        # TODO use TypedDict type
         cookies={
             "access_token": await strategy.write_token(user),
             "refresh_token": await refresh_strategy.write_token(user),
@@ -68,16 +73,11 @@ async def auth_client(user, get_test_async_session) -> AsyncGenerator[AsyncClien
     ) as client:
         yield client
 
+    app.dependency_overrides.clear()
+
 
 @pytest.fixture
 async def user(get_test_user_db):
     user_manager = await anext(get_user_manager(get_test_user_db))
-    created_user = await user_manager.create(UserCreate(email="t@t.com", password="t"))
+    created_user = await user_manager.create(UserCreate(email=fake.email(), password=fake.password()))
     return created_user
-
-
-def pytest_collection_modifyitems(items):
-    pytest_asyncio_tests = (item for item in items if is_async_test(item))
-    session_scope_marker = pytest.mark.asyncio(scope="session")
-    for async_test in pytest_asyncio_tests:
-        async_test.add_marker(session_scope_marker, append=False)
