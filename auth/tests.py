@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from auth.models import User
 from conftest import DateTimeBetweenKwargs
+from core.enums import ErrorDetails
 from factories import TestUser
 from referral_program.models import ReferralCode
 from referral_program.services import generate_referral_code
@@ -25,7 +26,6 @@ class TestAuth:
             select(User.referrer_id).where(User.id == registered_user_id)
         )
 
-    @pytest.mark.skip(reason="Detected bug, should be fixed")
     @pytest.mark.parametrize("referral_code", [DateTimeBetweenKwargs(start_date="-10d", end_date="-1d")], indirect=True)
     async def test_register_with_expired_referral_code(self, auth_client: AsyncClient, referral_code: ReferralCode):
         response = await auth_client.post(
@@ -33,6 +33,7 @@ class TestAuth:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == ErrorDetails.EXPIRED_REFERRAL_CODE
 
     async def test_register_with_used_referral_code(
         self, auth_client: AsyncClient, get_test_async_session, referral_code: ReferralCode
@@ -45,6 +46,7 @@ class TestAuth:
         )
 
         assert second_response.status_code == status.HTTP_400_BAD_REQUEST
+        assert second_response.json()["detail"] == ErrorDetails.REFERRAL_CODE_ALREADY_USED
 
     async def test_register_with_non_existing_referral_code(self, auth_client: AsyncClient, get_test_async_session):
         response = await auth_client.post(
@@ -52,6 +54,7 @@ class TestAuth:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == ErrorDetails.REFERRAL_CODE_DOESNT_EXIST
 
     async def test_logout(self, auth_client: AsyncClient):
         response = await auth_client.post("/auth/logout")

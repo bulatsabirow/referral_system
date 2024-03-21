@@ -9,15 +9,11 @@ from referral_program.models import ReferralCode
 
 
 class ReferralCodeMixin:
-    async def check_referral_code_existence(self, code):
-        exists_query = exists(select(ReferralCode).where(ReferralCode.code == code))
-        return await self.session.execute(select(exists_query))
-
     async def check_referral_code_was_used(self, code):
         check_used_query = exists(
             select(ReferralCode).join(User, and_(ReferralCode.id == User.referrer_id, ReferralCode.code == code))
         )
-        return await self.session.execute(select(check_used_query))
+        return await self.session.scalar(select(check_used_query))
 
     async def get_referral_code(self, code: str):
         select_referral_code_query = select(ReferralCode).where(ReferralCode.code == code)
