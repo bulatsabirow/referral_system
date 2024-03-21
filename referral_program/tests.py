@@ -1,13 +1,15 @@
+from typing import Callable
 from urllib.parse import quote
 
 import pytest
+from fastapi_users.schemas import BaseUser
 from httpx import Response
 from httpx import AsyncClient
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from referral_program.conftest import DateTimeBetweenKwargs
+from conftest import DateTimeBetweenKwargs
 from referral_program.models import ReferralCode
 
 
@@ -57,5 +59,17 @@ class TestReferralCode:
         assert response.json()["referral_code"] is None
         assert response.json()["id"] is None
 
-    async def test_get_referrals_by_referrer_id(self, auth_client: AsyncClient):
-        ...
+    async def test_get_referrals_by_referrer_id(
+        self, auth_client: AsyncClient, get_referral_user: Callable, referral_code: ReferralCode
+    ):
+        user: BaseUser = await get_referral_user(referral_code.code)
+        response: Response = await auth_client.get(f"/referral_code/referrals/{referral_code.referrer.id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == user.id
+        assert response.json()[0]["email"] == user.email
+
+    async def test_get_referrals_non_existing_user(self, auth_client: AsyncClient, referral_code: ReferralCode):
+        response: Response = await auth_client.get(f"/referral_code/referrals/{referral_code.referrer.id + 1}")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
