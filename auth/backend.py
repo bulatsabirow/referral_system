@@ -2,19 +2,15 @@ from fastapi import status
 from fastapi_users import models
 from fastapi_users.authentication import (
     AuthenticationBackend,
-    JWTStrategy,
     Strategy,
-    RedisStrategy,
 )
 from fastapi_users.authentication.strategy import StrategyDestroyNotSupportedError
 from fastapi_users.authentication.transport import TransportLogoutNotSupportedError
 from fastapi_users.types import DependencyCallable
 from starlette.responses import Response
 
-from auth.config import auth_settings
-from auth.strategy import RefreshRedisStrategy, get_jwt_strategy, get_refresh_redis_strategy
-from auth.transport import RefreshCookieTransport, refresh_cookie_transport
-from core.redis import redis
+from auth.strategy import get_jwt_strategy, get_refresh_redis_strategy
+from auth.transport import refresh_cookie_transport
 
 
 class AuthenticationRefreshJWTBackend(AuthenticationBackend):

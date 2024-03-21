@@ -3,9 +3,9 @@ from urllib.parse import quote
 
 import pytest
 from fastapi_users.schemas import BaseUser
-from httpx import Response
 from httpx import AsyncClient
-from sqlalchemy import select, func
+from httpx import Response
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -40,7 +40,6 @@ class TestReferralCode:
         assert second_response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_referral_code_by_email(self, auth_client: AsyncClient, referral_code: ReferralCode):
-        print(f"{referral_code.referrer=}")
         response: Response = await auth_client.get(
             "/referral_code", params={"email": quote(referral_code.referrer.email)}, follow_redirects=True
         )

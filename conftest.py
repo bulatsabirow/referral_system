@@ -20,6 +20,7 @@ from factories import TestUser, TestUserWithoutReferralCode
 from main import app
 from referral_program.db import ReferralProgramRepository
 from referral_program.models import ReferralCode
+from tests_utils import TokenCookies, async_partial, DateTimeBetweenKwargs, dependencies_overrider
 
 strategy = get_jwt_strategy()
 refresh_strategy = get_refresh_redis_strategy()
@@ -30,18 +31,6 @@ test_session = async_sessionmaker(expire_on_commit=False, autocommit=False, auto
 fake = Faker()
 
 
-class DateTimeBetweenKwargs(TypedDict):
-    start_date: Union[datetime, str]
-    end_date: Union[datetime, str]
-
-
-def async_partial(f, *args):
-    async def f2(*args2):
-        return await f(*args, *args2)
-
-    return f2
-
-
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -49,12 +38,12 @@ def event_loop():
     loop.close()
 
 
-async def create_database():
+async def create_tables():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def delete_database():
+async def drop_tables():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -62,9 +51,11 @@ async def delete_database():
 @pytest.fixture
 async def get_test_async_session():
     async with test_session() as session:
-        await create_database()
-        yield session
-        await delete_database()
+        try:
+            await create_tables()
+            yield session
+        finally:
+            await drop_tables()
 
 
 @pytest.fixture
@@ -73,22 +64,18 @@ async def get_test_user_db(get_test_async_session):
 
 
 @pytest.fixture
-async def auth_client(user, get_test_async_session) -> AsyncGenerator[AsyncClient, None]:
-    # TODO use context manager for dependency overriding
-    app.dependency_overrides[get_async_session] = lambda: get_test_async_session
+async def auth_client(user: BaseUser, get_test_async_session) -> AsyncGenerator[AsyncClient, None]:
+    overridden_dependencies = {get_async_session: lambda: get_test_async_session}
 
-    async with AsyncClient(
-        app=app,
-        base_url="http://test",
-        # TODO use TypedDict type
-        cookies={
-            "access_token": await strategy.write_token(user),
-            "refresh_token": await refresh_strategy.write_token(user),
-        },
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
+    with dependencies_overrider(app, overridden_dependencies) as test_app:
+        async with AsyncClient(
+            app=test_app,
+            base_url="http://test",
+            cookies=TokenCookies(
+                access_token=await strategy.write_token(user), refresh_token=await refresh_strategy.write_token(user)
+            ),
+        ) as client:
+            yield client
 
 
 @pytest.fixture
