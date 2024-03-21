@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from fastapi import Depends, Request, HTTPException
@@ -15,14 +16,14 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     verification_token_secret = auth_settings.VERIFICATION_TOKEN_SECRET
 
     async def validate_referral_code(self, referral_code: str) -> None:
-        check_referral_code_existence = await self.user_db.check_referral_code_existence(referral_code)
-        if not check_referral_code_existence.scalar():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.REFERRAL_CODE_DOESNT_EXISTS
-            )
+        referral_code_instance = await self.user_db.get_referral_code(referral_code)
+        if not referral_code_instance:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.REFERRAL_CODE_DOESNT_EXIST)
+        if referral_code_instance.expired_at < datetime.utcnow():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.EXPIRED_REFERRAL_CODE)
 
         check_referral_code_was_used = await self.user_db.check_referral_code_was_used(referral_code)
-        if check_referral_code_was_used.scalar():
+        if check_referral_code_was_used:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ErrorDetails.REFERRAL_CODE_ALREADY_USED)
 
     async def create(

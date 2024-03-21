@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
-from sqlalchemy import ForeignKey, CheckConstraint
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from core.models import Base
@@ -10,7 +10,7 @@ from core.models import Base
 class User(SQLAlchemyBaseUserTable[int], Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     referrer_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("referral_code.id", ondelete="SET NULL"), nullable=True, default=None
+        ForeignKey("referral_code.id", ondelete="SET NULL", use_alter=True), nullable=True, default=None
     )
 
     referral_codes = relationship(

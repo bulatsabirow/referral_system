@@ -1,9 +1,6 @@
-import datetime
-
-from fastapi_users.authentication import Transport, BearerTransport, CookieTransport
-from pydantic import BaseModel
-from starlette.responses import Response, JSONResponse
 from fastapi import status
+from fastapi_users.authentication import CookieTransport
+from starlette.responses import Response
 
 from auth.config import auth_settings
 

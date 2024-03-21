@@ -25,7 +25,7 @@ class ReferralProgramRepository:
 
         return query_result.scalar()
 
-    async def create_referral_code(self, referral_code):
+    async def create_referral_code(self, referral_code: ReferralCode):
         self.session.add(referral_code)
 
         await self.session.commit()
