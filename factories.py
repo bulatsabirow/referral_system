@@ -1,7 +1,11 @@
 from typing import Optional
 
+import aioredis
 from faker import Faker
 from pydantic import EmailStr, BaseModel, Field
+from pytest_redis import factories as redis_factories
+
+from core.config import settings
 
 fake = Faker()
 
